@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace GPTBus;
 
-internal sealed record Backup(byte[]? Original, string Before, string After, string? Catalog = null);
+internal sealed record Backup(byte[]? Original, string Before, string After, string? Catalog = null, string? CodexSignature = null);
 
 [JsonSerializable(typeof(Backup))]
 internal partial class BackupJson : JsonSerializerContext { }
@@ -106,7 +106,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
             else if (Hash(File.ReadAllBytes(catalogPath)) != Hash(catalog))
                 throw new InvalidOperationException("模型目录已被其他程序修改。");
         }
-        Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next), catalogPath ?? backup?.Catalog), BackupJson.Default.Backup));
+        Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next), catalogPath ?? backup?.Catalog, catalogPath == null ? null : ProviderConfig.CodexSignature(next, next)), BackupJson.Default.Backup));
         if (Hash(Read()) != before) throw new IOException("写入前检测到配置已变化。");
         Write(path, next);
         if (catalogPath != null && backup?.Catalog != catalogPath) RemoveCatalog(backup?.Catalog);
@@ -124,7 +124,19 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
     {
         using var guard = Lock();
         var backup = Load() ?? throw new InvalidOperationException("这台电脑上还没有可恢复的设置。");
-        var current = Hash(Read());
+        var bytes = Read();
+        var current = Hash(bytes);
+        if (backup.CodexSignature != null && bytes != null && current != backup.After &&
+            current != backup.Before && current != Hash(backup.Original))
+        {
+            var original = backup.Original ?? [];
+            var restored = ProviderConfig.RestoreDesktopFields(bytes, original, backup.CodexSignature);
+            if (Hash(Read()) != current) throw new IOException("设置在恢复前已变化。");
+            Write(path, restored);
+            RemoveCatalog(backup.Catalog);
+            File.Delete(Journal);
+            return;
+        }
         Check(backup, current);
         if (current != Hash(backup.Original))
         {

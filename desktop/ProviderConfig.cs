@@ -66,6 +66,61 @@ internal static class ProviderConfig
         return Toml.FromModel(root);
     }
 
+    private static readonly string[] CodexFields = ["model", "model_provider", "model_catalog_json"];
+    private static TomlTable? Table(TomlTable? root, string key) =>
+        root != null && root.TryGetValue(key, out var member) ? member as TomlTable : null;
+
+    internal static string CodexSignature(byte[] bytes, byte[] profileSource)
+    {
+        var current = Toml.ToModel(Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'));
+        var source = Toml.ToModel(Encoding.UTF8.GetString(profileSource).TrimStart('\uFEFF'));
+        var projection = new TomlTable();
+        foreach (var field in CodexFields)
+            if (current.TryGetValue(field, out var value)) projection[field] = value;
+        if (Table(Table(current, "model_providers"), "gptbus_connect") is { } provider)
+        {
+            var sorted = new TomlTable();
+            foreach (var name in provider.Keys.Order(StringComparer.Ordinal)) sorted[name] = provider[name];
+            projection["provider"] = sorted;
+        }
+        if (source.TryGetValue("profile", out var active) && active is string nameOfProfile &&
+            Table(Table(source, "profiles"), nameOfProfile) != null)
+        {
+            var selected = Table(Table(current, "profiles"), nameOfProfile);
+            projection["profile_name"] = nameOfProfile;
+            foreach (var field in new[] { "model", "model_provider" })
+                if (selected != null && selected.TryGetValue(field, out var value)) projection["profile_" + field] = value;
+        }
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(Toml.FromModel(projection))));
+    }
+
+    internal static byte[] RestoreDesktopFields(byte[] bytes, byte[] original, string signature)
+    {
+        if (CodexSignature(bytes, original) != signature)
+            throw new InvalidOperationException("GPTBus 连接设置已被其他程序修改，本次恢复已停止。");
+        var current = Toml.ToModel(Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'));
+        var before = Toml.ToModel(Encoding.UTF8.GetString(original).TrimStart('\uFEFF'));
+        static void Restore(TomlTable target, TomlTable? initial, string field)
+        {
+            if (initial != null && initial.TryGetValue(field, out var value)) target[field] = value;
+            else target.Remove(field);
+        }
+        foreach (var field in CodexFields) Restore(current, before, field);
+        if (Table(current, "model_providers") is { } providers)
+        {
+            Restore(providers, Table(before, "model_providers"), "gptbus_connect");
+            if (providers.Count == 0 && !before.ContainsKey("model_providers")) current.Remove("model_providers");
+        }
+        if (before.TryGetValue("profile", out var active) && active is string profile &&
+            Table(Table(before, "profiles"), profile) is { } initialProfile &&
+            Table(Table(current, "profiles"), profile) is { } currentProfile)
+        {
+            Restore(currentProfile, initialProfile, "model");
+            Restore(currentProfile, initialProfile, "model_provider");
+        }
+        return Encoding.UTF8.GetBytes(Toml.FromModel(current));
+    }
+
     private static bool HasDesktopLogin(string directory)
     {
         var path = Path.Combine(directory, "auth.json");
