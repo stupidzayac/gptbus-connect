@@ -11,7 +11,7 @@ namespace GPTBus;
 
 internal sealed class ConnectWindow : Window
 {
-    private readonly ComboBox client = new() { ItemsSource = new[] { "Codex CLI", "Claude Code" }, SelectedIndex = 0, MinWidth = 180 };
+    private readonly ComboBox client = new() { ItemsSource = new[] { "Codex 桌面版", "Codex CLI", "Claude Code", "OpenCode", "Pi" }, SelectedIndex = 0, MinWidth = 180 };
     private readonly TextBox key = new() { PasswordChar = '●', Watermark = "粘贴你的 GPTBus 密钥" };
     private readonly TextBox model = new() { Watermark = "从列表选择，或输入完整模型名称" };
     private readonly ComboBox models = new() { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -20,7 +20,7 @@ internal sealed class ConnectWindow : Window
     private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = false })
         { Timeout = TimeSpan.FromSeconds(15), MaxResponseContentBufferSize = 4 * 1024 * 1024 };
     private CancellationTokenSource? loginAttempt;
-    private string Client => client.SelectedIndex == 0 ? "codex" : "claude";
+    private string Client => client.SelectedIndex switch { 0 => "codex-desktop", 1 => "codex", 2 => "claude", 3 => "opencode", 4 => "pi", _ => throw new InvalidOperationException() };
 
     public ConnectWindow()
     {
@@ -87,7 +87,13 @@ internal sealed class ConnectWindow : Window
         {
             settings.Apply(key.Text?.Trim() ?? "", model.Text?.Trim() ?? "");
             key.Text = "";
-            return $"设置已保存。请在新的终端窗口运行 {Client}，开始对话。";
+            return Client switch
+            {
+                "codex-desktop" => "已连接。请完全退出并重新打开 Codex 桌面版，在新对话中选择模型。",
+                "opencode" => "已添加 GPTBus。请在 OpenCode 的模型列表中选择 GPTBus 下的模型。",
+                "pi" => "已添加 GPTBus。请在 Pi 中输入 /model，选择 GPTBus 下的模型。",
+                _ => $"设置已保存。请在新的终端窗口运行 {Client}，开始对话。"
+            };
         });
         restore.Click += (_, _) => Run(settings =>
         {

@@ -11,7 +11,7 @@ internal static class ProviderConfig
     public const string Site = "https://gptbus.ai";
     // Port of CC Switch's build_claude_settings and CodexLinkConfig::render.
     // See third_party/cc-switch for the pinned sources and MIT notice.
-    public static byte[] Render(string client, byte[]? file, string key, string model)
+    public static byte[] Render(string client, byte[]? file, string key, string model, string? catalogPath = null)
     {
         if (key.Length == 0 || key.Any(c => c < 33 || c > 126))
             throw new InvalidOperationException("请输入有效的 GPTBus API 密钥。");
@@ -23,7 +23,8 @@ internal static class ProviderConfig
         {
             result = client switch
             {
-                "codex" => Codex(text, key, model),
+                "codex" or "codex-desktop" => Codex(text, key, model, catalogPath),
+                "opencode" or "pi" => ExtraProviders.Add(client, text, key, model),
                 "claude" => Claude(text, key, model),
                 _ => throw new ArgumentException()
             };
@@ -36,9 +37,15 @@ internal static class ProviderConfig
         return Encoding.UTF8.GetBytes(result);
     }
 
-    private static string Codex(string text, string key, string model)
+    private static string Codex(string text, string key, string model, string? catalogPath)
     {
         var root = Toml.ToModel(text);
+        if (catalogPath != null)
+        {
+            bool wsl = root.TryGetValue("desktop", out var desktop) && desktop is TomlTable table &&
+                table.TryGetValue("runCodexInWindowsSubsystemForLinux", out var enabled) && enabled is true;
+            root["model_catalog_json"] = OperatingSystem.IsWindows() && (wsl || catalogPath.StartsWith(@"\\")) ? Path.GetFileName(catalogPath) : catalogPath;
+        }
         root["model_provider"] = "gptbus_connect";
         root["model"] = model;
         if (!root.TryGetValue("model_providers", out var value))
@@ -47,7 +54,7 @@ internal static class ProviderConfig
         providers["gptbus_connect"] = new TomlTable
         {
             ["name"] = "GPTBus", ["base_url"] = Site + "/v1", ["wire_api"] = "responses",
-            ["requires_openai_auth"] = false, ["experimental_bearer_token"] = key
+            ["requires_openai_auth"] = catalogPath != null && HasDesktopLogin(Path.GetDirectoryName(catalogPath)!), ["experimental_bearer_token"] = key
         };
         if (root.TryGetValue("profile", out var active) && active is string name &&
             root.TryGetValue("profiles", out var entries) && entries is TomlTable profiles &&
@@ -57,6 +64,26 @@ internal static class ProviderConfig
             profile["model"] = model;
         }
         return Toml.FromModel(root);
+    }
+
+    private static bool HasDesktopLogin(string directory)
+    {
+        var path = Path.Combine(directory, "auth.json");
+        if (!File.Exists(path)) return false;
+        using var file = File.OpenRead(path);
+        using var auth = JsonDocument.Parse(file);
+        return auth.RootElement.TryGetProperty("tokens", out var tokens) && tokens.ValueKind == JsonValueKind.Object &&
+            tokens.TryGetProperty("access_token", out var access) && access.ValueKind == JsonValueKind.String;
+    }
+
+    internal static byte[] CodexCatalog(string model)
+    {
+        using var stream = typeof(ProviderConfig).Assembly.GetManifestResourceStream("CodexModelTemplate")!;
+        var entry = JsonNode.Parse(stream)!.AsObject();
+        entry["slug"] = model;
+        entry["display_name"] = model;
+        entry["description"] = model;
+        return Encoding.UTF8.GetBytes(new JsonObject { ["models"] = new JsonArray(entry) }.ToJsonString());
     }
 
     private static string Claude(string text, string key, string model)

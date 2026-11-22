@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace GPTBus;
 
-internal sealed record Backup(byte[]? Original, string Before, string After);
+internal sealed record Backup(byte[]? Original, string Before, string After, string? Catalog = null);
 
 [JsonSerializable(typeof(Backup))]
 internal partial class BackupJson : JsonSerializerContext { }
@@ -20,12 +20,21 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
     public static ClientSettings Open(string client)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var directory = client == "codex" ? Environment.GetEnvironmentVariable("CODEX_HOME")
-                                         : Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        if (string.IsNullOrWhiteSpace(directory)) directory = Path.Combine(home, "." + client);
+        string Env(string name, string fallback) =>
+            Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : fallback;
+        var (directory, filename) = client switch
+        {
+            "codex" or "codex-desktop" => (Env("CODEX_HOME", Path.Combine(home, ".codex")), "config.toml"),
+            "claude" => (Env("CLAUDE_CONFIG_DIR", Path.Combine(home, ".claude")), "settings.json"),
+            "pi" => (Env("PI_CODING_AGENT_DIR", Path.Combine(home, ".pi", "agent")), "models.json"),
+            "opencode" => (Path.Combine(Env("XDG_CONFIG_HOME", Path.Combine(home, ".config")), "opencode"), "opencode.json"),
+            _ => throw new InvalidOperationException("无法识别这个客户端。")
+        };
+        if (client.StartsWith("opencode", StringComparison.Ordinal) && File.Exists(Path.Combine(directory, "opencode.jsonc")))
+            filename = "opencode.jsonc";
         if (!Path.IsPathFullyQualified(directory))
-            throw new InvalidOperationException("找不到客户端的设置文件夹。请检查客户端的安装位置。");
-        var path = Path.Combine(directory, client == "codex" ? "config.toml" : "settings.json");
+            throw new InvalidOperationException("客户端配置目录必须是绝对路径。");
+        var path = Path.Combine(directory, filename);
         return new(path, Path.Combine(home, ".gptbus-connect", "backups"), client);
     }
 
@@ -81,10 +90,34 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
         var before = Hash(current);
         var backup = Load();
         Check(backup, before);
-        var next = ProviderConfig.Render(client, current, key, model);
-        Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next)), BackupJson.Default.Backup));
+        string? catalogPath = null;
+        byte[]? catalog = null;
+        if (client == "codex-desktop")
+        {
+            catalog = ProviderConfig.CodexCatalog(model);
+            catalogPath = Path.Combine(Path.GetDirectoryName(path)!, $"gptbus-models-{Hash(catalog)}.json");
+        }
+        var next = ProviderConfig.Render(client, current, key, model, catalogPath);
+        if (catalogPath != null && catalog != null)
+        {
+            if (new FileInfo(catalogPath).LinkTarget != null)
+                throw new InvalidOperationException("模型目录指向其他位置，请检查设置。");
+            if (!File.Exists(catalogPath)) Write(catalogPath, catalog);
+            else if (Hash(File.ReadAllBytes(catalogPath)) != Hash(catalog))
+                throw new InvalidOperationException("模型目录已被其他程序修改。");
+        }
+        Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next), catalogPath ?? backup?.Catalog), BackupJson.Default.Backup));
         if (Hash(Read()) != before) throw new IOException("写入前检测到配置已变化。");
         Write(path, next);
+        if (catalogPath != null && backup?.Catalog != catalogPath) RemoveCatalog(backup?.Catalog);
+    }
+
+    private void RemoveCatalog(string? catalog)
+    {
+        if (catalog == null || Path.GetDirectoryName(catalog) != Path.GetDirectoryName(path)) return;
+        var info = new FileInfo(catalog);
+        if (info.LinkTarget != null || !info.Exists || info.Length > 1024 * 1024) return;
+        if (info.Name == $"gptbus-models-{Hash(File.ReadAllBytes(catalog))}.json") File.Delete(catalog);
     }
 
     public void Restore()
@@ -98,6 +131,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
             if (backup.Original == null) File.Delete(path);
             else Write(path, backup.Original);
         }
+        RemoveCatalog(backup.Catalog);
         File.Delete(Journal);
     }
 }
