@@ -1,4 +1,4 @@
-"""Launch a local Codex CLI or Claude Code session connected to GPTBus."""
+"""通过 GPTBus 启动 Codex CLI 或 Claude Code。"""
 
 import argparse
 import getpass
@@ -28,9 +28,9 @@ def api_key():
             raise ValueError("非交互运行时，请先设置 GPTBUS_API_KEY。")
         with warnings.catch_warnings():
             warnings.simplefilter("error", getpass.GetPassWarning)
-            key = getpass.getpass("GPTBus API Key（输入隐藏）: ").strip()
+            key = getpass.getpass("输入 GPTBus API 密钥（输入时不会显示）：").strip()
     if not key or not all(33 <= ord(c) <= 126 for c in key):
-        raise ValueError("请输入有效的 GPTBus API Key。")
+        raise ValueError("请输入有效的 GPTBus API 密钥。")
     return key
 
 

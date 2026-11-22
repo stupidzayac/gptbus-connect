@@ -98,7 +98,7 @@ internal static class ProviderConfig
     internal static byte[] RestoreDesktopFields(byte[] bytes, byte[] original, string signature)
     {
         if (CodexSignature(bytes, original) != signature)
-            throw new InvalidOperationException("GPTBus 连接设置已被其他程序修改，本次恢复已停止。");
+            throw new InvalidOperationException("GPTBus 的连接设置已发生变化。为保留这些更改，工具已停止恢复。");
         var current = Toml.ToModel(Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'));
         var before = Toml.ToModel(Encoding.UTF8.GetString(original).TrimStart('\uFEFF'));
         static void Restore(TomlTable target, TomlTable? initial, string field)

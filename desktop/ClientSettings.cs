@@ -33,7 +33,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
         if (client.StartsWith("opencode", StringComparison.Ordinal) && File.Exists(Path.Combine(directory, "opencode.jsonc")))
             filename = "opencode.jsonc";
         if (!Path.IsPathFullyQualified(directory))
-            throw new InvalidOperationException("客户端配置目录必须是绝对路径。");
+            throw new InvalidOperationException("找不到客户端的设置文件夹。如果你自定义过它的位置，请检查是否填写了完整路径。");
         var path = Path.Combine(directory, filename);
         return new(path, Path.Combine(home, ".gptbus-connect", "backups"), client);
     }
@@ -80,7 +80,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
     private static void Check(Backup? backup, string current)
     {
         if (backup != null && current != backup.After && current != backup.Before && current != Hash(backup.Original))
-            throw new InvalidOperationException("其他程序已更改客户端设置。为保留这些更改，本次操作已停止。");
+            throw new InvalidOperationException("客户端设置已发生变化。为保留这些更改，本次操作已停止。");
     }
 
     public void Apply(string key, string model)
@@ -101,10 +101,10 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
         if (catalogPath != null && catalog != null)
         {
             if (new FileInfo(catalogPath).LinkTarget != null)
-                throw new InvalidOperationException("模型目录指向其他位置，请检查设置。");
+                throw new InvalidOperationException("模型列表文件链接到了其他位置，工具已停止设置。");
             if (!File.Exists(catalogPath)) Write(catalogPath, catalog);
             else if (Hash(File.ReadAllBytes(catalogPath)) != Hash(catalog))
-                throw new InvalidOperationException("模型目录已被其他程序修改。");
+                throw new InvalidOperationException("模型列表文件已被修改，工具已停止设置，以保留你的更改。");
         }
         Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next), catalogPath ?? backup?.Catalog, catalogPath == null ? null : ProviderConfig.CodexSignature(next, next)), BackupJson.Default.Backup));
         if (Hash(Read()) != before) throw new IOException("写入前检测到配置已变化。");

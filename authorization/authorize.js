@@ -51,7 +51,7 @@
   }
   el('login').onclick = () => {
     loginTab = window.open('about:blank','_blank','popup,width=620,height=800');
-    if (!loginTab) { el('hint').textContent = '请允许打开登录窗口，再点一次登录。'; return; }
+    if (!loginTab) { el('hint').textContent = '请允许浏览器为 gptbus.ai 打开弹出窗口，再点一次「登录 GPTBus」。'; return; }
     loginTab.opener = null;
     loginTab.location.replace('/sign-in');
     el('hint').textContent = '完成登录后，请在此页确认连接。';

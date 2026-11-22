@@ -35,8 +35,7 @@ internal sealed class ConnectWindow : Window
         heading.Children.Add(new TextBlock { Text = Title, FontSize = 25, FontWeight = FontWeight.SemiBold });
         var panel = new StackPanel { Margin = new Thickness(28), Spacing = 10 };
         panel.Children.Add(heading);
-        panel.Children.Add(new TextBlock { Text = "选择你想连接的应用", Margin = new Thickness(0,0,0,6) });
-        AddField(panel, "客户端", client);
+        AddField(panel, "选择客户端", client);
         var login = new Button { Content = "登录 GPTBus", HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center };
         login.Classes.Add("accent");
         panel.Children.Add(login);
@@ -66,13 +65,13 @@ internal sealed class ConnectWindow : Window
             UpdateApply();
             try
             {
-                key.Text = await DesktopLogin.SignIn(Http, code => status.Text = $"请在官网确认识别码 {code}，然后允许连接。", timeout.Token);
+                key.Text = await DesktopLogin.SignIn(Http, code => status.Text = $"请核对官网显示的识别码是否为 {code}。一致后，点击「允许并返回工具」。", timeout.Token);
                 Activate();
                 fallback.IsExpanded = false;
                 status.Text = "登录成功，正在获取可用模型…";
                 await LoadModels();
             }
-            catch (OperationCanceledException) { status.Text = "登录已取消或已超时，请重新登录。"; }
+            catch (OperationCanceledException) { status.Text = "登录尚未完成。要继续，请点击「登录 GPTBus」。"; }
             catch (InvalidOperationException error) { status.Text = error.Message; }
             catch (Exception) { status.Text = "暂时无法完成登录，请重试或手动输入密钥。"; }
             finally { loginAttempt = null; login.Content = "登录 GPTBus"; fallback.IsEnabled = client.IsEnabled = true; UpdateApply(); }
@@ -83,7 +82,7 @@ internal sealed class ConnectWindow : Window
         models.SelectionChanged += (_, _) => { if (models.SelectedItem is string id) model.Text = id; };
         key.TextChanged += (_, _) => { models.ItemsSource = null; models.IsVisible = false; };
         var actions = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,6,0,0) };
-        apply.Click += (_, _) => Run(settings =>
+        apply.Click += (_, _) => Run("未能保存客户端设置。", settings =>
         {
             settings.Apply(key.Text?.Trim() ?? "", model.Text?.Trim() ?? "");
             key.Text = "";
@@ -95,7 +94,7 @@ internal sealed class ConnectWindow : Window
                 _ => $"设置已保存。请在新的终端窗口运行 {Client}，开始对话。"
             };
         });
-        restore.Click += (_, _) => Run(settings =>
+        restore.Click += (_, _) => Run("未能恢复原设置。", settings =>
         {
             settings.Restore();
             return "已恢复连接前的设置。请重新打开客户端。";
@@ -156,13 +155,14 @@ internal sealed class ConnectWindow : Window
             var settings = ClientSettings.Open(Client);
             restore.IsEnabled = settings.HasBackup;
         }
-        catch (Exception) { status.Text = "找不到客户端的设置文件夹。"; restore.IsEnabled = false; }
+        catch (Exception) { status.Text = "找不到客户端的设置文件夹。如果你自定义过它的位置，请检查是否填写了完整路径。"; restore.IsEnabled = false; }
     }
-    private void Run(Func<ClientSettings,string> action)
+    private void Run(string failureMessage, Func<ClientSettings,string> action)
     {
         try { status.Text = action(ClientSettings.Open(Client)); }
         catch (InvalidOperationException ex) { status.Text = ex.Message; }
-        catch (Exception) { status.Text = "无法保存设置。请检查磁盘空间，并确认你有权限更改客户端设置。"; }
+        catch (UnauthorizedAccessException) { status.Text = failureMessage + "请检查你是否有权限更改设置文件。"; }
+        catch (Exception) { status.Text = failureMessage; }
         Refresh();
     }
 }

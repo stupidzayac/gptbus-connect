@@ -48,12 +48,12 @@ internal static class DesktopLogin
             if (!response.IsSuccessStatusCode)
             {
                 await Respond(stream, "连接未完成。请返回桌面工具重新登录。", stop);
-                throw new InvalidOperationException("授权已过期或无法创建设备密钥，请重新登录。");
+                throw new InvalidOperationException("这次授权没有完成。请再点一次「登录 GPTBus」。");
             }
             using var json = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(stop));
             var key = json.RootElement.GetProperty("key").GetString();
             if (string.IsNullOrEmpty(key) || !key.StartsWith("sk-", StringComparison.Ordinal))
-                throw new InvalidOperationException("未获得设备密钥，请重新登录。");
+                throw new InvalidOperationException("这次授权没有完成。请再点一次「登录 GPTBus」。");
             await Respond(stream, "已授权给 GPTBus Connect。请返回桌面工具选择模型。", stop);
             return key;
         }
