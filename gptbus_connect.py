@@ -13,7 +13,7 @@ import urllib.request
 import warnings
 
 
-SITE = "https://gptbus.ai"
+API_ORIGIN = "https://api.gptbus.ai"
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -35,7 +35,7 @@ def api_key():
 
 
 def model_catalog(key):
-    req = urllib.request.Request(SITE + "/v1/models", headers={
+    req = urllib.request.Request(API_ORIGIN + "/v1/models", headers={
         "Authorization": "Bearer " + key, "Accept": "application/json",
     })
     try:
@@ -88,13 +88,13 @@ def client_command(client, model, key):
     if client == "codex":
         env["GPTBUS_API_KEY"] = key
         args = ["-c", 'model_provider="gptbus"', "-c",
-                'model_providers.gptbus={ name="GPTBus", base_url="https://gptbus.ai/v1", '
+                'model_providers.gptbus={ name="GPTBus", base_url="https://api.gptbus.ai/v1", '
                 'wire_api="responses", env_key="GPTBUS_API_KEY" }', "--model", model]
     else:
         for var in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK",
                     "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"):
             env.pop(var, None)
-        env.update(ANTHROPIC_BASE_URL=SITE, ANTHROPIC_AUTH_TOKEN=key)
+        env.update(ANTHROPIC_BASE_URL=API_ORIGIN, ANTHROPIC_AUTH_TOKEN=key)
         args = ["--model", model]
     return executable(client) + args, env
 
@@ -119,7 +119,7 @@ def main():
         model = select_model(model_catalog(key))
     if not model.strip() or not model.isprintable() or model.startswith("-"):
         raise ValueError("模型 ID 无效。")
-    endpoint, protocol = (SITE + "/v1", "Responses") if client == "codex" else (SITE, "Messages")
+    endpoint, protocol = (API_ORIGIN + "/v1", "Responses") if client == "codex" else (API_ORIGIN, "Messages")
     print(f"{client}  |  {endpoint}  |  {protocol}  |  {model}", flush=True)
     if args.preview:
         return 0

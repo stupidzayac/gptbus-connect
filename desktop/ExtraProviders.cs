@@ -14,7 +14,7 @@ internal static class ExtraProviders
         using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
         bool legacy = client == "opencode" && !document.RootElement.TryGetProperty("providers", out _);
         var group = legacy ? "provider" : "providers";
-        var url = ProviderConfig.Site + "/v1";
+        var url = ProviderConfig.ApiOrigin + "/v1";
         var models = new JsonObject { [model] = new JsonObject { ["name"] = model } };
         var provider = client switch
         {

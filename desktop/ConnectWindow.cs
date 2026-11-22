@@ -119,7 +119,7 @@ internal sealed class ConnectWindow : Window
         if (token.Length == 0) { status.Text = "请先输入 GPTBus API 密钥。"; return; }
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, ProviderConfig.Site + "/v1/models");
+            using var request = new HttpRequestMessage(HttpMethod.Get, ProviderConfig.ApiOrigin + "/v1/models");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var response = await Http.SendAsync(request);
             if (selected != Client || token != key.Text?.Trim()) return;

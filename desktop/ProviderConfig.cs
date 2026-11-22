@@ -9,6 +9,7 @@ namespace GPTBus;
 internal static class ProviderConfig
 {
     public const string Site = "https://gptbus.ai";
+    public const string ApiOrigin = "https://api.gptbus.ai";
     // Port of CC Switch's build_claude_settings and CodexLinkConfig::render.
     // See third_party/cc-switch for the pinned sources and MIT notice.
     public static byte[] Render(string client, byte[]? file, string key, string model, string? catalogPath = null)
@@ -53,7 +54,7 @@ internal static class ProviderConfig
         var providers = (TomlTable)value;
         providers["gptbus_connect"] = new TomlTable
         {
-            ["name"] = "GPTBus", ["base_url"] = Site + "/v1", ["wire_api"] = "responses",
+            ["name"] = "GPTBus", ["base_url"] = ApiOrigin + "/v1", ["wire_api"] = "responses",
             ["requires_openai_auth"] = catalogPath != null && HasDesktopLogin(Path.GetDirectoryName(catalogPath)!), ["experimental_bearer_token"] = key
         };
         if (root.TryGetValue("profile", out var active) && active is string name &&
@@ -149,7 +150,7 @@ internal static class ProviderConfig
         foreach (var other in new[] { "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
                      "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY" })
             env.Remove(other);
-        env["ANTHROPIC_BASE_URL"] = Site;
+        env["ANTHROPIC_BASE_URL"] = ApiOrigin;
         env["ANTHROPIC_AUTH_TOKEN"] = key;
         env["ANTHROPIC_MODEL"] = model;
         foreach (var alias in new[] { "HAIKU", "SONNET", "OPUS" })

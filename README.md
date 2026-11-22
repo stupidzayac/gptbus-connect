@@ -6,9 +6,9 @@
 
 | 你的电脑 | 下载 |
 | --- | --- |
-| Windows | [Intel 或 AMD](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.0/GPTBus-Connect-v1.2.0-win-x64.zip) · [ARM 电脑](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.0/GPTBus-Connect-v1.2.0-win-arm64.zip) |
-| Mac | [Apple 芯片（M 系列）](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.0/GPTBus-Connect-v1.2.0-osx-arm64.zip) · [Intel 芯片](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.0/GPTBus-Connect-v1.2.0-osx-x64.zip) |
-| Linux | [Intel 或 AMD](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.0/GPTBus-Connect-v1.2.0-linux-x64.zip) · [ARM 电脑](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.0/GPTBus-Connect-v1.2.0-linux-arm64.zip) |
+| Windows | [Intel 或 AMD](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.1/GPTBus-Connect-v1.2.1-win-x64.zip) · [ARM 电脑](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.1/GPTBus-Connect-v1.2.1-win-arm64.zip) |
+| Mac | [Apple 芯片（M 系列）](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.1/GPTBus-Connect-v1.2.1-osx-arm64.zip) · [Intel 芯片](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.1/GPTBus-Connect-v1.2.1-osx-x64.zip) |
+| Linux | [Intel 或 AMD](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.1/GPTBus-Connect-v1.2.1-linux-x64.zip) · [ARM 电脑](https://github.com/stupidzayac/gptbus-connect/releases/download/v1.2.1/GPTBus-Connect-v1.2.1-linux-arm64.zip) |
 
 下载后解压，打开 GPTBus Connect。如果不确定 Mac 的芯片型号，可在苹果菜单的「关于本机」中查看。
 
@@ -21,3 +21,5 @@
 已有密钥也可以展开「手动输入密钥」并粘贴使用。若只想试用，可在官网授权时把这台设备的消费上限设为 US$0.50。
 
 工具会备份连接前的设置。要切回原设置，点击「恢复原设置」。要停用设备密钥，请在 GPTBus 控制台的「API 密钥」中停用对应的 GPTBus Connect 记录。
+
+新连接使用 `https://api.gptbus.ai`。已连接的客户端可以继续使用原地址。要切换到新地址，请打开新版工具，选择原来的客户端并再次点击「连接 GPTBus」。
