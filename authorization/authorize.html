@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>连接桌面工具 · GPTBus</title>
+<link rel="icon" href="/brand/gptbus-pixel-tab.ico">
+<style>
+:root{color-scheme:light dark;font-family:system-ui,sans-serif;color:light-dark(#182034,#eef2fa);background:light-dark(#f4f6fb,#171a20)}
+*{box-sizing:border-box}body{min-height:100svh;margin:0;display:grid;place-items:center;padding:20px}main{width:min(100%,440px);padding:32px;border:1px solid light-dark(#dbe1ea,#424757);border-radius:16px;background:light-dark(white,#262a33)}
+header{display:flex;align-items:center;gap:10px;font-weight:700}h1{font-size:1.55rem;margin:24px 0 12px}p{line-height:1.6}small{display:block;font-size:.88rem;line-height:1.55}code{font-size:1.15rem;letter-spacing:.08em}label{display:grid;gap:7px;margin:16px 0}select,button{font:inherit;padding:10px 12px;border-radius:8px}button{cursor:pointer;border:0;font-weight:600}button:disabled{opacity:.6}#approve,#login{background:#2d62d8;color:white}.buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}[hidden]{display:none!important}
+</style>
+<main><header><img src="/brand/gptbus-mark-simple.svg" width="32" height="32" alt=""> GPTBus</header>
+<h1>连接 GPTBus Connect</h1>
+<p id="status" role="status">正在检查登录状态…</p>
+<section id="consent" hidden>
+<p>请确认桌面工具显示相同的识别码：<code id="pair"></code></p>
+<p>允许这台电脑使用你的 GPTBus 余额调用模型。你随时可以在控制台的「API 密钥」中停用这台设备。</p>
+<label>这台设备的消费上限<select id="limit"><option value="account">使用账户可用余额</option><option value="trial">最多 US$0.50</option></select></label>
+</section><div class="buttons"><button id="login" hidden>登录 GPTBus</button><button id="approve" hidden>允许并返回工具</button><button id="cancel" hidden>取消</button></div>
+<small id="hint"></small></main><script src="/connect/authorize.js"></script>
+</html>

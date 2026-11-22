@@ -1,0 +1,17 @@
+[Unit]
+Description=GPTBus Connect desktop authorization
+After=network.target
+
+[Service]
+ExecStart=/opt/gptbus-connect-auth/gptbus-connect-auth
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+LimitCORE=0
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
