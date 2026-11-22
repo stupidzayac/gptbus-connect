@@ -5,7 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>GPTBus-Connect</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <ApplicationIcon>gptbus.ico</ApplicationIcon>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
@@ -14,6 +16,7 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
     <PackageReference Include="Tomlyn" Version="0.19.0" />
+    <TrimmerRootAssembly Include="Tomlyn" />
     <AvaloniaResource Include="bus.png" />
     <EmbeddedResource Include="../third_party/cc-switch/LICENSE" LogicalName="CCSwitchLicense" />
   </ItemGroup>

@@ -16,7 +16,7 @@ internal static class ProviderConfig
         if (key.Length == 0 || key.Any(c => c < 33 || c > 126))
             throw new InvalidOperationException("请输入有效的 GPTBus API 密钥。");
         if (string.IsNullOrWhiteSpace(model) || model.Any(char.IsControl))
-            throw new InvalidOperationException("请先选择或输入模型 ID。");
+            throw new InvalidOperationException("请先选择或输入模型名称。");
         var text = new UTF8Encoding(false, true).GetString(file ?? []).TrimStart('\uFEFF');
         string result;
         try
@@ -31,7 +31,7 @@ internal static class ProviderConfig
         catch (Exception)
         {
             // Parser diagnostics may quote a line containing an existing credential.
-            throw new InvalidOperationException("现有配置格式无法安全合并，请先检查客户端配置文件。");
+            throw new InvalidOperationException("无法读取客户端当前的设置。请先确认客户端能正常打开。");
         }
         return Encoding.UTF8.GetBytes(result);
     }
@@ -73,6 +73,9 @@ internal static class ProviderConfig
         foreach (var alias in new[] { "HAIKU", "SONNET", "OPUS" })
             env[$"ANTHROPIC_DEFAULT_{alias}_MODEL"] = model;
         root["model"] = model;
-        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
+            root.WriteTo(writer);
+        return Encoding.UTF8.GetString(buffer.ToArray()) + "\n";
     }
 }

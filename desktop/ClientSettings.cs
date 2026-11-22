@@ -1,15 +1,20 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GPTBus;
+
+internal sealed record Backup(byte[]? Original, string Before, string After);
+
+[JsonSerializable(typeof(Backup))]
+internal partial class BackupJson : JsonSerializerContext { }
 
 internal sealed class ClientSettings(string path, string stateDirectory, string client)
 {
     public string Location => path;
     private string Journal => Path.Combine(stateDirectory,
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(path)))) + ".json");
-    private sealed record Backup(byte[]? Original, string Before, string After);
     public bool HasBackup => File.Exists(Journal);
 
     public static ClientSettings Open(string client)
@@ -19,7 +24,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
                                          : Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         if (string.IsNullOrWhiteSpace(directory)) directory = Path.Combine(home, "." + client);
         if (!Path.IsPathFullyQualified(directory))
-            throw new InvalidOperationException("客户端配置目录需要使用绝对路径。");
+            throw new InvalidOperationException("找不到客户端的设置文件夹。请检查客户端的安装位置。");
         var path = Path.Combine(directory, client == "codex" ? "config.toml" : "settings.json");
         return new(path, Path.Combine(home, ".gptbus-connect", "backups"), client);
     }
@@ -28,7 +33,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
     private byte[]? Read()
     {
         if (new FileInfo(path).LinkTarget != null)
-            throw new InvalidOperationException("此配置文件是符号链接，请在客户端中手动设置。");
+            throw new InvalidOperationException("设置文件已链接到其他位置，请在客户端中手动连接。");
         try { return File.ReadAllBytes(path); }
         catch (FileNotFoundException) { return null; }
         catch (DirectoryNotFoundException) { return null; }
@@ -61,12 +66,12 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
         return new FileStream(Journal + ".lock", FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
     }
     private Backup? Load() => HasBackup
-        ? JsonSerializer.Deserialize<Backup>(File.ReadAllBytes(Journal)) ?? throw new IOException("备份无效。") : null;
+        ? JsonSerializer.Deserialize(File.ReadAllBytes(Journal), BackupJson.Default.Backup) ?? throw new IOException("备份无效。") : null;
 
     private static void Check(Backup? backup, string current)
     {
         if (backup != null && current != backup.After && current != backup.Before && current != Hash(backup.Original))
-            throw new InvalidOperationException("配置已被其他程序修改，本次操作已停止。请保留当前文件并手动核对原始备份。");
+            throw new InvalidOperationException("其他程序已更改客户端设置。为保留这些更改，本次操作已停止。");
     }
 
     public void Apply(string key, string model)
@@ -77,7 +82,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
         var backup = Load();
         Check(backup, before);
         var next = ProviderConfig.Render(client, current, key, model);
-        Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next))));
+        Write(Journal, JsonSerializer.SerializeToUtf8Bytes(new Backup(backup == null ? current : backup.Original, before, Hash(next)), BackupJson.Default.Backup));
         if (Hash(Read()) != before) throw new IOException("写入前检测到配置已变化。");
         Write(path, next);
     }
@@ -85,7 +90,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
     public void Restore()
     {
         using var guard = Lock();
-        var backup = Load() ?? throw new InvalidOperationException("没有可恢复的配置。");
+        var backup = Load() ?? throw new InvalidOperationException("这台电脑上还没有可恢复的设置。");
         var current = Hash(Read());
         Check(backup, current);
         if (current != Hash(backup.Original))
