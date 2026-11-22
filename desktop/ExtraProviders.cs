@@ -35,6 +35,8 @@ internal static class ExtraProviders
             },
             _ => throw new ArgumentException("Unknown provider format")
         };
+        if (client == "opencode" && !document.RootElement.TryGetProperty("$schema", out _))
+            bytes = SetMember(bytes, new[] { "$schema" }, JsonValue.Create("https://opencode.ai/config.json")!);
         var result = SetMember(bytes, new[] { group, "gptbus_connect" }, provider);
         return Encoding.UTF8.GetString(result);
     }

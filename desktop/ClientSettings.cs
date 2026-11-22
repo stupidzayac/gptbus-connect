@@ -92,7 +92,7 @@ internal sealed class ClientSettings(string path, string stateDirectory, string 
         Check(backup, before);
         string? catalogPath = null;
         byte[]? catalog = null;
-        if (client == "codex-desktop")
+        if (client == "codex-desktop" || (client == "codex" && backup?.Catalog != null))
         {
             catalog = ProviderConfig.CodexCatalog(model);
             catalogPath = Path.Combine(Path.GetDirectoryName(path)!, $"gptbus-models-{Hash(catalog)}.json");
