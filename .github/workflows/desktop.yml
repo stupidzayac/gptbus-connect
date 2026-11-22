@@ -1,0 +1,89 @@
+name: Build desktop packages
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, runner: windows-2025 }
+          - { rid: win-arm64, runner: windows-11-arm }
+          - { rid: linux-x64, runner: ubuntu-24.04 }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
+          - { rid: osx-arm64, runner: macos-15 }
+          - { rid: osx-x64, runner: macos-15-intel }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    env:
+      RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '10.0.x' }
+      - name: Publish self-contained executable
+        shell: pwsh
+        run: |
+          dotnet publish desktop -c Release -r $env:RID --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o build
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item third_party/NOTICES.txt build/ThirdPartyNotices.txt
+      - name: Open Windows window and package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $app = Start-Process ./build/GPTBus-Connect.exe -PassThru
+          try {
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep 1
+              $app.Refresh()
+              if ($app.HasExited) { throw 'Application exited during startup' }
+              if ($app.MainWindowTitle -eq 'GPTBus Connect') { break }
+            }
+            if ($app.MainWindowTitle -ne 'GPTBus Connect') { throw 'Main window missing' }
+          } finally { if (!$app.HasExited) { $app.Kill() } }
+          Compress-Archive -Path build/GPTBus-Connect.exe,build/ThirdPartyNotices.txt -DestinationPath "GPTBus-Connect-$env:RID.zip"
+      - name: Open Linux window and package
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xauth x11-utils libfontconfig1 libice6 libsm6 libx11-6 libxrandr2 libxi6 libxcursor1 libxrender1
+          xvfb-run -a bash -ec '
+            ./build/GPTBus-Connect &
+            pid=$!
+            trap "kill $pid || true" EXIT
+            for i in {1..40}; do
+              kill -0 "$pid"
+              if xwininfo -root -tree | grep -q "GPTBus Connect"; then exit 0; fi
+              sleep 1
+            done
+            exit 1'
+          cd build && zip "../GPTBus-Connect-$RID.zip" GPTBus-Connect ThirdPartyNotices.txt
+      - name: Sign, open and package macOS application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          app="GPTBus Connect.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp build/GPTBus-Connect "$app/Contents/MacOS/"
+          cp build/ThirdPartyNotices.txt "$app/Contents/Resources/"
+          mkdir bus.iconset
+          for size in 16 32 128; do sips -z "$size" "$size" desktop/bus.png --out "bus.iconset/icon_${size}x${size}.png" >/dev/null; done
+          iconutil -c icns bus.iconset -o "$app/Contents/Resources/bus.icns"
+          cp desktop/Info.plist "$app/Contents/"
+          codesign --force --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          "$app/Contents/MacOS/GPTBus-Connect" &
+          pid=$!
+          trap 'kill "$pid" || true' EXIT
+          sleep 8
+          kill -0 "$pid"
+          ditto -c -k --keepParent "$app" "GPTBus-Connect-$RID.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: GPTBus-Connect-*.zip
+          compression-level: 0
+          retention-days: 5
