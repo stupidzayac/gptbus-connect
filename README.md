@@ -22,4 +22,4 @@
 
 工具会备份连接前的设置。要切回原设置，点击「恢复原设置」。要停用设备密钥，请在 GPTBus 控制台的「API 密钥」中停用对应的 GPTBus Connect 记录。
 
-新连接使用 `https://api.gptbus.ai`。已连接的客户端可以继续使用原地址。要切换到新地址，请打开新版工具，选择原来的客户端并再次点击「连接 GPTBus」。
+新连接使用 `https://api.gptbus.ai`。旧版配置需要更新。请打开 v1.2.1 或更高版本，选择原来的客户端，再点击「连接 GPTBus」。手动配置时，OpenAI 兼容客户端填写 `https://api.gptbus.ai/v1`，Claude Code 的 `ANTHROPIC_BASE_URL` 填写 `https://api.gptbus.ai`。
